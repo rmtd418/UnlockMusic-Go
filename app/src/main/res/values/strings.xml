@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">音乐解锁</string>
+    <string name="notification_channel_name">解锁任务</string>
+    <string name="notification_channel_description">显示批量解锁的进度和完成状态</string>
+    <string name="notification_title_running">正在批量解锁</string>
+    <string name="notification_title_cancel_requested">正在取消批量解锁</string>
+    <string name="notification_title_finished">批量解锁已结束</string>
+    <string name="notification_progress_format">已处理 %1$d/%2$d，成功 %3$d，失败 %4$d，已取消 %5$d</string>
+    <string name="notification_result_format">成功 %1$d，失败 %2$d，已取消 %3$d</string>
+    <string name="notification_current_task_format">当前文件：%1$s（%2$d%%）</string>
+    <string name="notification_cancel_action">取消</string>
+    <string name="notification_canceled_format">已在 %1$d/%2$d 个文件后取消，跳过了 %3$d 个文件。</string>
+</resources>

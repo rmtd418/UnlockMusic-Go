@@ -1,0 +1,41 @@
+package dev.unlockmusic.android.core.metadata
+
+enum class DetectedFileType(val extensions: Set<String>) {
+    QMC(
+        setOf(
+            "qmc0",
+            "qmc2",
+            "qmc3",
+            "qmc4",
+            "qmc6",
+            "qmc8",
+            "qmcflac",
+            "qmcogg",
+            "tkm",
+            "bkcmp3",
+            "bkcm4a",
+            "bkcflac",
+            "bkcwav",
+            "bkcape",
+            "bkcogg",
+            "bkcwma",
+            "mgg",
+            "mgg0",
+            "mgg1",
+            "mggl",
+            "mflac",
+            "mflac0",
+            "mflach",
+            "mmp4",
+            "666c6163",
+            "6d7033",
+            "6f6767",
+            "6d3461",
+            "776176",
+        ),
+    ),
+    NCM(setOf("ncm")),
+    KGM(setOf("kgm", "kgma", "vpr")),
+    UNKNOWN(emptySet()),
+}
+
