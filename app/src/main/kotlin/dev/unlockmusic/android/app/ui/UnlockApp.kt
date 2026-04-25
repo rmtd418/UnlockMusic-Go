@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -389,11 +390,12 @@ private fun AboutScreen(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     val versionName =
         remember(context) {
             runCatching {
                 context.packageManager.getPackageInfo(context.packageName, 0).versionName
-            }.getOrDefault("0.1.0-alpha01")
+            }.getOrDefault("1.0.0")
         }
 
     Scaffold(
@@ -421,9 +423,19 @@ private fun AboutScreen(
                     lines =
                         listOf(
                             "版本：$versionName",
-                            "原始项目参考：https://github.com/ix64/unlock-music",
-                            "当前 Android 版仓库地址可在正式发布时补充到这里。",
                         ),
+                    links =
+                        listOf(
+                            InfoLink(
+                                label = "原始项目参考",
+                                url = ORIGINAL_PROJECT_URL,
+                            ),
+                            InfoLink(
+                                label = "当前 Android 版开源仓库",
+                                url = ANDROID_PROJECT_URL,
+                            ),
+                        ),
+                    onOpenLink = uriHandler::openUri,
                 )
             }
             item {
@@ -434,18 +446,6 @@ private fun AboutScreen(
                             "QMC 系列：qmc0、qmcflac、mflac、mgg 等",
                             "NCM",
                             "KGM / KGMA / VPR",
-                        ),
-                )
-            }
-            item {
-                InfoCard(
-                    title = "使用说明",
-                    lines =
-                        listOf(
-                            "1. 先选择文件，导入后会直接显示在文件列表里。",
-                            "2. 默认输出到应用自动创建的 UnlockMusicOutput，也可以手动切换目录。",
-                            "3. 不支持的文件会保留在列表里，但不会加入可执行队列。",
-                            "4. 从列表移除不会删除原始文件，只会移除应用里的当前工作项。",
                         ),
                 )
             }
@@ -488,6 +488,8 @@ private fun AboutScreen(
 private fun InfoCard(
     title: String,
     lines: List<String>,
+    links: List<InfoLink> = emptyList(),
+    onOpenLink: ((String) -> Unit)? = null,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -498,9 +500,22 @@ private fun InfoCard(
             lines.forEach { line ->
                 Text(line, style = MaterialTheme.typography.bodyMedium)
             }
+            links.forEach { link ->
+                TextButton(
+                    onClick = { onOpenLink?.invoke(link.url) },
+                    contentPadding = PaddingValues(0.dp),
+                ) {
+                    Text("${link.label}：${link.url}")
+                }
+            }
         }
     }
 }
+
+private data class InfoLink(
+    val label: String,
+    val url: String,
+)
 
 private fun fileTypeLabel(fileType: DetectedFileType): String {
     return when (fileType) {
@@ -554,3 +569,6 @@ private fun transientSnackbarMessage(uiState: UnlockUiState): String? {
         else -> queueActionHint(uiState)
     }
 }
+
+private const val ORIGINAL_PROJECT_URL = "https://git.unlock-music.dev/um/web"
+private const val ANDROID_PROJECT_URL = "https://github.com/rmtd418/UnlockMusic-Go"

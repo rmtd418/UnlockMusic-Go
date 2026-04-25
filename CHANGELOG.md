@@ -2,7 +2,7 @@
 
 All notable project changes should be documented here.
 
-## Unreleased
+## 1.0.0
 
 - Added Android-native file-based processing path to reduce memory pressure on large files.
 - Made DataStore access asynchronous in UI-facing paths.

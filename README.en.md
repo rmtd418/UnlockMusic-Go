@@ -4,7 +4,7 @@
 
 Unlock Music Android is an Android-native local music file processing app. It brings part of the original `unlock-music` experience to Android with Kotlin, Jetpack Compose, Android Storage Access Framework, and foreground-service based batch execution.
 
-This project is currently in alpha / MVP status. It is intended for testing, research, and personal interoperability use cases. Please use it only with files you are legally allowed to access and process.
+The current project version is `1.0.0`. It is intended for testing, research, and personal interoperability use cases. Please use it only with files you are legally allowed to access and process.
 
 ## Relationship With The Original Project
 
@@ -12,6 +12,7 @@ This project is an Android-native adaptation inspired by the original `unlock-mu
 
 - Original project: https://git.unlock-music.dev/um/web
 - Historical GitHub repository: https://github.com/unlock-music/unlock-music
+- This project repository: https://github.com/rmtd418/UnlockMusic-Go
 - This project is not an official Android client of the original `unlock-music` project.
 - The original project remains copyrighted by its original authors and contributors. Android-specific implementation work in this repository is copyrighted by this project's authors and contributors.
 
@@ -45,17 +46,6 @@ The original Web project supports more formats. Formats not listed here should n
 - There is no queue history page yet.
 - Some Compose instrumentation cases are skipped on API 36 emulator images because of upstream Espresso compatibility issues.
 - This project does not provide, host, or distribute music files.
-
-## Usage
-
-1. Open the app.
-2. Tap `Select files` / `选择文件` to import files.
-3. Use the default `UnlockMusicOutput` directory or choose another output directory.
-4. Start the queue.
-5. Follow progress in the app and Android notification.
-6. Retry failed or canceled tasks when needed.
-
-Removing an item from the list only removes it from the current app queue. It does not delete the original source file.
 
 ## Build Requirements
 

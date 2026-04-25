@@ -17,6 +17,7 @@ The Android project in this repository is not an official Android client of the 
 ## This Project
 
 - Name: Unlock Music Android
+- Public repository: https://github.com/rmtd418/UnlockMusic-Go
 - License: MIT License
 - Android-specific implementation copyright:
   - Copyright (c) 2026 rmtd and Unlock Music Android contributors
