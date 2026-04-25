@@ -25,6 +25,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -40,6 +41,9 @@ import dev.unlockmusic.android.data.document.DocumentDisplayNameResolver
 import dev.unlockmusic.android.data.document.UriPermissionManager
 import dev.unlockmusic.android.data.settings.LastSessionSettingsStore
 import dev.unlockmusic.android.domain.model.UnlockSource
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun UnlockApp() {
@@ -50,6 +54,7 @@ fun UnlockApp() {
     val resolver = remember(context) { DocumentDisplayNameResolver(context.contentResolver) }
     val permissionManager = remember(context) { UriPermissionManager(context.contentResolver) }
     val sessionStore = remember(context) { LastSessionSettingsStore(context) }
+    val coroutineScope = rememberCoroutineScope()
     val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
     var showAboutPage by rememberSaveable { mutableStateOf(false) }
 
@@ -69,18 +74,20 @@ fun UnlockApp() {
     val pickDirectory = rememberLauncherForActivityResult(OpenDocumentTree()) { uri: Uri? ->
         if (uri != null) {
             permissionManager.persistDirectoryPermission(uri)
-            sessionStore.saveOutputDirectoryUri(uri.toString())
             viewModel.onOutputDirectorySelected(uri.toString())
+            coroutineScope.launch {
+                sessionStore.saveOutputDirectoryUri(uri.toString())
+            }
         }
     }
 
-    val initialOutputDirectory =
-        remember(sessionStore, defaultOutputDirectoryManager) {
-            sessionStore.loadOutputDirectoryUri()
-                ?: defaultOutputDirectoryManager.ensureDefaultOutputDirectoryUri().also(sessionStore::saveOutputDirectoryUri)
-        }
-    LaunchedEffect(initialOutputDirectory, uiState.outputDirectoryUri) {
-        if (uiState.outputDirectoryUri == null && initialOutputDirectory != null) {
+    LaunchedEffect(sessionStore, defaultOutputDirectoryManager) {
+        if (uiState.outputDirectoryUri == null) {
+            val initialOutputDirectory =
+                sessionStore.loadOutputDirectoryUri()
+                    ?: withContext(Dispatchers.IO) {
+                        defaultOutputDirectoryManager.ensureDefaultOutputDirectoryUri()
+                    }.also { sessionStore.saveOutputDirectoryUri(it) }
             viewModel.onOutputDirectorySelected(initialOutputDirectory)
         }
     }
@@ -241,13 +248,6 @@ private fun FileListSection(
             text = listTitle,
             style = MaterialTheme.typography.titleLarge,
         )
-        if (false) {
-        Text(
-            text = "导入列表（${uiState.visibleItems.size}）",
-            style = MaterialTheme.typography.titleLarge,
-        )
-
-        }
         if (uiState.successfulCount > 0) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -531,14 +531,6 @@ private fun formatOutputDirectoryLabel(outputDirectoryUri: String?): String {
         "file" -> uri.path ?: outputDirectoryUri
         else -> outputDirectoryUri
     }
-}
-
-private fun isDefaultOutputDirectory(outputDirectoryUri: String?): Boolean {
-    if (outputDirectoryUri == null) return false
-
-    val path = Uri.parse(outputDirectoryUri).path ?: return false
-    return path.endsWith("/${DefaultOutputDirectoryManager.DEFAULT_OUTPUT_DIRECTORY_NAME}") ||
-        path.endsWith("\\${DefaultOutputDirectoryManager.DEFAULT_OUTPUT_DIRECTORY_NAME}")
 }
 
 private fun queueActionHint(uiState: UnlockUiState): String? {

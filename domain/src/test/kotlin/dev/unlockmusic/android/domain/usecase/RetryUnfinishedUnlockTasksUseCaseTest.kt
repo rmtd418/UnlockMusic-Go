@@ -19,6 +19,7 @@ class RetryUnfinishedUnlockTasksUseCaseTest {
                 task(id = "running", status = UnlockStatus.Running(progressPercent = 55)),
                 task(id = "queued", status = UnlockStatus.Queued),
                 task(id = "success", status = UnlockStatus.Success("done.flac")),
+                task(id = "unsupported", status = UnlockStatus.Failed("unsupported"), detectedFileType = DetectedFileType.UNKNOWN),
             )
 
         val retried = useCase(tasks)
@@ -28,11 +29,13 @@ class RetryUnfinishedUnlockTasksUseCaseTest {
         assertEquals(UnlockStatus.Queued, retried[2].status)
         assertEquals(UnlockStatus.Queued, retried[3].status)
         assertEquals(UnlockStatus.Success("done.flac"), retried[4].status)
+        assertEquals(UnlockStatus.Failed("unsupported"), retried[5].status)
     }
 
     private fun task(
         id: String,
         status: UnlockStatus,
+        detectedFileType: DetectedFileType = DetectedFileType.QMC,
     ): UnlockTask {
         return UnlockTask(
             id = id,
@@ -40,7 +43,7 @@ class RetryUnfinishedUnlockTasksUseCaseTest {
                 UnlockSource(
                     uriString = "content://$id",
                     displayName = "$id.qmc0",
-                    detectedFileType = DetectedFileType.QMC,
+                    detectedFileType = detectedFileType,
                 ),
             status = status,
             queuedAtEpochMillis = 1L,

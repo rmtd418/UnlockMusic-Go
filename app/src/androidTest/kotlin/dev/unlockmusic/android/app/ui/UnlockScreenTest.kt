@@ -16,13 +16,11 @@ import dev.unlockmusic.android.domain.model.UnlockStatus
 import dev.unlockmusic.android.domain.model.UnlockTask
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-@Ignore("Compose instrumentation is blocked by Espresso on API 36 emulator images")
 class UnlockScreenTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
@@ -113,7 +111,7 @@ class UnlockScreenTest {
         }
 
         composeRule.onNodeWithText("取消执行").assertIsEnabled().performClick()
-        composeRule.onNodeWithText("当前批次 0/2，正在处理 demo.kgm").assertIsDisplayed()
+        composeRule.onNodeWithText("正在处理，当前进度 55%。").assertIsDisplayed()
         composeRule.onNodeWithText("状态：执行中").assertIsDisplayed()
 
         composeRule.runOnIdle {

@@ -13,12 +13,14 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import dev.unlockmusic.android.app.MainActivity
 import dev.unlockmusic.android.app.R
+import dev.unlockmusic.android.core.decrypt.DefaultFileDispatchDecryptor
+import dev.unlockmusic.android.core.decrypt.FileDispatchDecryptor
 import dev.unlockmusic.android.data.document.DocumentBytesReader
 import dev.unlockmusic.android.data.document.TreeDocumentWriter
 import dev.unlockmusic.android.domain.model.UnlockStatus
 import dev.unlockmusic.android.domain.model.UnlockSummary
 import dev.unlockmusic.android.domain.model.UnlockTask
-import dev.unlockmusic.android.domain.usecase.ExecuteUnlockTaskUseCase
+import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -27,7 +29,7 @@ import kotlinx.coroutines.launch
 
 class UnlockForegroundService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val executeUnlockTask by lazy { ExecuteUnlockTaskUseCase() }
+    private val fileDispatchDecryptor: FileDispatchDecryptor by lazy { DefaultFileDispatchDecryptor.create() }
     private val documentBytesReader by lazy { DocumentBytesReader(contentResolver) }
     private val treeDocumentWriter by lazy { TreeDocumentWriter(this, contentResolver) }
     private val notificationManager by lazy {
@@ -122,30 +124,43 @@ class UnlockForegroundService : Service() {
                         processedCount = index,
                         message = "正在读取 ${index + 1}/$total：$taskName",
                     )
-                    val inputBytes = documentBytesReader.readBytes(Uri.parse(task.source.uriString))
+                    val inputFile = temporaryFile("unlock-input-", task.id)
+                    val outputFile = temporaryFile("unlock-output-", task.id)
 
-                    updateStage(
-                        task = task,
-                        taskName = taskName,
-                        progressPercent = 55,
-                        processedCount = index,
-                        message = "正在解密 ${index + 1}/$total：$taskName",
-                    )
-                    val result = executeUnlockTask(task, inputBytes)
+                    try {
+                        documentBytesReader.copyToFile(Uri.parse(task.source.uriString), inputFile)
 
-                    updateStage(
-                        task = task,
-                        taskName = taskName,
-                        progressPercent = 85,
-                        processedCount = index,
-                        message = "正在写出 ${index + 1}/$total：$taskName",
-                    )
-                    treeDocumentWriter.writeBytes(
-                        treeUri = Uri.parse(outputDirectoryUri),
-                        displayName = result.suggestedFileName,
-                        bytes = result.outputBytes,
-                        mimeType = mimeTypeFor(result.outputExtension),
-                    )
+                        updateStage(
+                            task = task,
+                            taskName = taskName,
+                            progressPercent = 55,
+                            processedCount = index,
+                            message = "正在解密 ${index + 1}/$total：$taskName",
+                        )
+                        val result =
+                            fileDispatchDecryptor.decryptToFile(
+                                filename = task.source.displayName,
+                                inputFile = inputFile,
+                                outputFile = outputFile,
+                            )
+
+                        updateStage(
+                            task = task,
+                            taskName = taskName,
+                            progressPercent = 85,
+                            processedCount = index,
+                            message = "正在写出 ${index + 1}/$total：$taskName",
+                        )
+                        treeDocumentWriter.writeFile(
+                            treeUri = Uri.parse(outputDirectoryUri),
+                            displayName = result.suggestedFileName,
+                            sourceFile = result.outputFile,
+                            mimeType = mimeTypeFor(result.outputExtension),
+                        )
+                    } finally {
+                        inputFile.delete()
+                        outputFile.delete()
+                    }
                 }.onSuccess { outputName ->
                     UnlockExecutionStore.updateTaskStatus(
                         taskId = task.id,
@@ -416,6 +431,16 @@ class UnlockForegroundService : Service() {
             "wma" -> "audio/x-ms-wma"
             else -> "application/octet-stream"
         }
+    }
+
+    private fun temporaryFile(
+        prefix: String,
+        taskId: String,
+    ): File {
+        val directory = File(cacheDir, "unlock-execution").apply {
+            mkdirs()
+        }
+        return File.createTempFile(prefix + taskId.take(8), ".tmp", directory)
     }
 
     companion object {

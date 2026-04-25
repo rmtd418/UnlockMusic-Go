@@ -6,9 +6,7 @@ import dev.unlockmusic.android.core.metadata.DetectedFileType
 import dev.unlockmusic.android.domain.model.UnlockSource
 import dev.unlockmusic.android.domain.model.UnlockStatus
 import dev.unlockmusic.android.domain.model.UnlockTask
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -30,39 +28,38 @@ class UnlockExecutionSnapshotStore(
 ) {
     private val applicationContext = context.applicationContext
 
-    fun load(): UnlockExecutionSnapshot? {
-        return runBlocking(Dispatchers.IO) {
-            migrateLegacyValueIfNeeded()
-            val rawSnapshot =
-                applicationContext.unlockMusicDataStore.data.first()[UnlockSettingsKeys.executionSnapshot]
-                    ?: return@runBlocking null
-            runCatching { decode(rawSnapshot) }.getOrNull()
+    @Volatile
+    private var migrationComplete = false
+
+    suspend fun load(): UnlockExecutionSnapshot? {
+        migrateLegacyValueIfNeeded()
+        val rawSnapshot =
+            applicationContext.unlockMusicDataStore.data.first()[UnlockSettingsKeys.executionSnapshot]
+                ?: return null
+        return runCatching { decode(rawSnapshot) }.getOrNull()
+    }
+
+    suspend fun save(snapshot: UnlockExecutionSnapshot) {
+        migrateLegacyValueIfNeeded()
+        applicationContext.unlockMusicDataStore.edit { preferences ->
+            preferences[UnlockSettingsKeys.executionSnapshot] = encode(snapshot)
         }
     }
 
-    fun save(snapshot: UnlockExecutionSnapshot) {
-        runBlocking(Dispatchers.IO) {
-            migrateLegacyValueIfNeeded()
-            applicationContext.unlockMusicDataStore.edit { preferences ->
-                preferences[UnlockSettingsKeys.executionSnapshot] = encode(snapshot)
-            }
+    suspend fun clear() {
+        applicationContext.unlockMusicDataStore.edit { preferences ->
+            preferences.remove(UnlockSettingsKeys.executionSnapshot)
         }
-    }
-
-    fun clear() {
-        runBlocking(Dispatchers.IO) {
-            applicationContext.unlockMusicDataStore.edit { preferences ->
-                preferences.remove(UnlockSettingsKeys.executionSnapshot)
-            }
-            applicationContext
-                .unlockLegacySharedPreferences()
-                .edit()
-                .remove(KEY_EXECUTION_SNAPSHOT)
-                .apply()
-        }
+        applicationContext
+            .unlockLegacySharedPreferences()
+            .edit()
+            .remove(KEY_EXECUTION_SNAPSHOT)
+            .apply()
     }
 
     private suspend fun migrateLegacyValueIfNeeded() {
+        if (migrationComplete) return
+
         val dataStore = applicationContext.unlockMusicDataStore
         val existing = dataStore.data.first()[UnlockSettingsKeys.executionSnapshot]
         val legacyPreferences = applicationContext.unlockLegacySharedPreferences()
@@ -77,6 +74,8 @@ class UnlockExecutionSnapshotStore(
         if (legacyValue != null) {
             legacyPreferences.edit().remove(KEY_EXECUTION_SNAPSHOT).apply()
         }
+
+        migrationComplete = true
     }
 
     private fun encode(snapshot: UnlockExecutionSnapshot): String {

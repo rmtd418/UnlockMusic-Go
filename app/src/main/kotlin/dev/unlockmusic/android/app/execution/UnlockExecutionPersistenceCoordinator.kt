@@ -4,6 +4,8 @@ import dev.unlockmusic.android.data.settings.UnlockExecutionSnapshot
 import dev.unlockmusic.android.data.settings.UnlockExecutionSnapshotStore
 import dev.unlockmusic.android.domain.usecase.RecoverInterruptedUnlockTasksUseCase
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 
 class UnlockExecutionPersistenceCoordinator(
@@ -13,16 +15,18 @@ class UnlockExecutionPersistenceCoordinator(
     @Volatile
     private var initialized = false
 
+    @OptIn(FlowPreview::class)
     fun initialize(scope: CoroutineScope) {
         if (initialized) return
         initialized = true
 
-        snapshotStore.load()
-            ?.let(::recoverSnapshot)
-            ?.let(UnlockExecutionStore::restore)
-
         scope.launch {
+            snapshotStore.load()
+                ?.let(::recoverSnapshot)
+                ?.let(UnlockExecutionStore::restore)
+
             UnlockExecutionStore.state
+                .debounce(SNAPSHOT_SAVE_DEBOUNCE_MILLIS)
                 .collect { state ->
                     snapshotStore.save(
                         UnlockExecutionSnapshot(
@@ -70,5 +74,9 @@ class UnlockExecutionPersistenceCoordinator(
             currentTaskName = null,
             currentTaskProgressPercent = 0,
         )
+    }
+
+    private companion object {
+        const val SNAPSHOT_SAVE_DEBOUNCE_MILLIS = 750L
     }
 }

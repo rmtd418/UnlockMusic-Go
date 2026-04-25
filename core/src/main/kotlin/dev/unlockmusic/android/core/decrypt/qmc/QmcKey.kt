@@ -140,9 +140,13 @@ private fun decryptTencentTea(
     }
 
     repeat(ZERO_LENGTH) {
+        if (tmpIndex == TeaCipher.BLOCK_SIZE) {
+            cryptBlock()
+        }
         if (tmpBuffer.getOrNull(tmpIndex) != ivPrevious.getOrNull(tmpIndex)) {
             error("zero check failed")
         }
+        tmpIndex++
     }
 
     return output

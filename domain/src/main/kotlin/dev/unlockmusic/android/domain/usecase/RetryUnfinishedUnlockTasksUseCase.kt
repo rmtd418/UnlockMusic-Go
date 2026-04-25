@@ -1,11 +1,16 @@
 package dev.unlockmusic.android.domain.usecase
 
+import dev.unlockmusic.android.core.metadata.DetectedFileType
 import dev.unlockmusic.android.domain.model.UnlockStatus
 import dev.unlockmusic.android.domain.model.UnlockTask
 
 class RetryUnfinishedUnlockTasksUseCase {
     operator fun invoke(tasks: List<UnlockTask>): List<UnlockTask> {
         return tasks.map { task ->
+            if (task.source.detectedFileType == DetectedFileType.UNKNOWN) {
+                return@map task
+            }
+
             when (task.status) {
                 UnlockStatus.Canceled,
                 is UnlockStatus.Failed,

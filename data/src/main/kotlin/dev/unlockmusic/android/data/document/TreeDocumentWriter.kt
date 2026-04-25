@@ -38,6 +38,36 @@ class TreeDocumentWriter(
         return resolvedName
     }
 
+    fun writeFile(
+        treeUri: Uri,
+        displayName: String,
+        sourceFile: File,
+        mimeType: String = "application/octet-stream",
+    ): String {
+        if (treeUri.scheme == ContentResolver.SCHEME_FILE) {
+            return writeFileToFileDirectory(treeUri, displayName, sourceFile)
+        }
+
+        val directory = requireNotNull(DocumentFile.fromTreeUri(context, treeUri)) {
+            "Unable to resolve output directory"
+        }
+        val resolvedName = resolveUniqueDisplayName(directory, displayName)
+        val outputDocument = requireNotNull(directory.createFile(mimeType, resolvedName)) {
+            "Unable to create output file: $resolvedName"
+        }
+
+        requireNotNull(contentResolver.openOutputStream(outputDocument.uri, "w")) {
+            "Unable to open output stream for ${outputDocument.uri}"
+        }.use { output ->
+            sourceFile.inputStream().use { input ->
+                input.copyTo(output)
+            }
+            output.flush()
+        }
+
+        return resolvedName
+    }
+
     private fun writeBytesToFileDirectory(
         directoryUri: Uri,
         displayName: String,
@@ -57,6 +87,31 @@ class TreeDocumentWriter(
         File(directory, resolvedName).outputStream().use { output ->
             output.write(bytes)
             output.flush()
+        }
+        return resolvedName
+    }
+
+    private fun writeFileToFileDirectory(
+        directoryUri: Uri,
+        displayName: String,
+        sourceFile: File,
+    ): String {
+        val directory =
+            requireNotNull(directoryUri.path) { "Unable to resolve output directory path" }
+                .let(::File)
+        check(directory.exists() || directory.mkdirs()) {
+            "Unable to create output directory: ${directory.absolutePath}"
+        }
+        check(directory.isDirectory && directory.canWrite()) {
+            "Output directory is not writable: ${directory.absolutePath}"
+        }
+
+        val resolvedName = resolveUniqueDisplayName(directory, displayName)
+        sourceFile.inputStream().use { input ->
+            File(directory, resolvedName).outputStream().use { output ->
+                input.copyTo(output)
+                output.flush()
+            }
         }
         return resolvedName
     }

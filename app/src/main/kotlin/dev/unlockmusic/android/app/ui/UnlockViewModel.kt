@@ -56,22 +56,18 @@ class UnlockViewModel(
             sources.filter { incoming ->
                 incoming.uriString !in existingUris
             }
-        val supportedSources =
-            deduplicatedNewSources.filter { source ->
+        val supportedCount =
+            deduplicatedNewSources.count { source ->
                 source.detectedFileType != DetectedFileType.UNKNOWN
             }
         val duplicateCount = sources.size - deduplicatedNewSources.size
-        val unsupportedCount = deduplicatedNewSources.size - supportedSources.size
+        val unsupportedCount = deduplicatedNewSources.size - supportedCount
 
-        if (supportedSources.isEmpty()) {
+        if (deduplicatedNewSources.isEmpty()) {
             UnlockExecutionStore.replaceTasks(
                 tasks = existingTasks,
                 message =
                     when {
-                        unsupportedCount > 0 && duplicateCount > 0 ->
-                            "这次有 $unsupportedCount 个文件当前不支持，未导入；另跳过 $duplicateCount 个重复文件。"
-                        unsupportedCount > 0 ->
-                            "这次有 $unsupportedCount 个文件当前不支持，未导入。"
                         duplicateCount > 0 ->
                             "所选文件都已在列表中，已跳过重复导入。"
                         else -> null
@@ -80,18 +76,18 @@ class UnlockViewModel(
             return
         }
 
-        val newTasks = enqueueUnlockTasks(supportedSources)
+        val newTasks = enqueueUnlockTasks(deduplicatedNewSources)
         UnlockExecutionStore.replaceTasks(
             tasks = existingTasks + newTasks,
             message =
                 when {
                     unsupportedCount > 0 && duplicateCount > 0 ->
-                        "已导入 ${supportedSources.size} 个文件；$unsupportedCount 个当前不支持，未导入；另跳过 $duplicateCount 个重复文件。"
+                        "已导入 ${deduplicatedNewSources.size} 个文件；$unsupportedCount 个当前不支持，已标记为不支持；另跳过 $duplicateCount 个重复文件。"
                     unsupportedCount > 0 ->
-                        "已导入 ${supportedSources.size} 个文件；$unsupportedCount 个当前不支持，未导入。"
+                        "已导入 ${deduplicatedNewSources.size} 个文件；$unsupportedCount 个当前不支持，已标记为不支持。"
                     duplicateCount > 0 ->
-                        "已导入 ${supportedSources.size} 个文件，跳过 $duplicateCount 个重复文件。"
-                    else -> "已导入 ${supportedSources.size} 个文件。"
+                        "已导入 ${deduplicatedNewSources.size} 个文件，跳过 $duplicateCount 个重复文件。"
+                    else -> "已导入 ${deduplicatedNewSources.size} 个文件。"
                 },
         )
     }
@@ -175,7 +171,9 @@ class UnlockViewModel(
 
         val preflight = preflightChecker.validate(state)
         if (preflight.outputDirectoryError != null) {
-            lastSessionSettingsStore.clear()
+            viewModelScope.launch {
+                lastSessionSettingsStore.clear()
+            }
             UnlockExecutionStore.updateOutputDirectory(null)
             UnlockExecutionStore.replaceTasks(
                 tasks = state.tasks,
@@ -224,9 +222,12 @@ class UnlockViewModel(
 
         val retryableCount =
             state.tasks.count { task ->
-                task.status is UnlockStatus.Failed ||
-                    task.status is UnlockStatus.Canceled ||
-                    task.status is UnlockStatus.Running
+                task.source.detectedFileType != DetectedFileType.UNKNOWN &&
+                    (
+                        task.status is UnlockStatus.Failed ||
+                            task.status is UnlockStatus.Canceled ||
+                            task.status is UnlockStatus.Running
+                    )
             }
         if (retryableCount == 0) return
 

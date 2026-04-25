@@ -10,6 +10,7 @@ import dev.unlockmusic.android.data.document.DocumentBytesReader
 import dev.unlockmusic.android.data.document.TreeDocumentWriter
 import dev.unlockmusic.android.data.settings.LastSessionSettingsStore
 import dev.unlockmusic.android.data.settings.UnlockExecutionSnapshotStore
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -84,8 +85,10 @@ class DocumentStorageIntegrationTest {
 
     private fun resetFixtures() {
         TestDocuments.reset(context.contentResolver)
-        UnlockExecutionSnapshotStore(context).clear()
-        LastSessionSettingsStore(context).clear()
+        runBlocking {
+            UnlockExecutionSnapshotStore(context).clear()
+            LastSessionSettingsStore(context).clear()
+        }
     }
 
     private fun encryptQmcStatic(plainBytes: ByteArray): ByteArray {

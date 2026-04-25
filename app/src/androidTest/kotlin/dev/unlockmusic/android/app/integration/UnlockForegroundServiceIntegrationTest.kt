@@ -17,6 +17,7 @@ import dev.unlockmusic.android.data.settings.UnlockExecutionSnapshotStore
 import dev.unlockmusic.android.domain.model.UnlockSource
 import dev.unlockmusic.android.domain.model.UnlockStatus
 import dev.unlockmusic.android.domain.model.UnlockTask
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -125,8 +126,10 @@ class UnlockForegroundServiceIntegrationTest {
 
     private fun resetFixtures() {
         TestDocuments.reset(context.contentResolver)
-        UnlockExecutionSnapshotStore(context).clear()
-        LastSessionSettingsStore(context).clear()
+        runBlocking {
+            UnlockExecutionSnapshotStore(context).clear()
+            LastSessionSettingsStore(context).clear()
+        }
         UnlockExecutionStore.restore(UnlockExecutionState())
     }
 

@@ -2,45 +2,42 @@ package dev.unlockmusic.android.data.settings
 
 import android.content.Context
 import androidx.datastore.preferences.core.edit
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 
 class LastSessionSettingsStore(
     context: Context,
 ) {
     private val applicationContext = context.applicationContext
 
-    fun loadOutputDirectoryUri(): String? {
-        return runBlocking(Dispatchers.IO) {
-            migrateLegacyValueIfNeeded()
-            applicationContext.unlockMusicDataStore.data.first()[UnlockSettingsKeys.outputDirectoryUri]
+    @Volatile
+    private var migrationComplete = false
+
+    suspend fun loadOutputDirectoryUri(): String? {
+        migrateLegacyValueIfNeeded()
+        return applicationContext.unlockMusicDataStore.data.first()[UnlockSettingsKeys.outputDirectoryUri]
+    }
+
+    suspend fun saveOutputDirectoryUri(uriString: String) {
+        migrateLegacyValueIfNeeded()
+        applicationContext.unlockMusicDataStore.edit { preferences ->
+            preferences[UnlockSettingsKeys.outputDirectoryUri] = uriString
         }
     }
 
-    fun saveOutputDirectoryUri(uriString: String) {
-        runBlocking(Dispatchers.IO) {
-            migrateLegacyValueIfNeeded()
-            applicationContext.unlockMusicDataStore.edit { preferences ->
-                preferences[UnlockSettingsKeys.outputDirectoryUri] = uriString
-            }
+    suspend fun clear() {
+        applicationContext.unlockMusicDataStore.edit { preferences ->
+            preferences.remove(UnlockSettingsKeys.outputDirectoryUri)
         }
-    }
-
-    fun clear() {
-        runBlocking(Dispatchers.IO) {
-            applicationContext.unlockMusicDataStore.edit { preferences ->
-                preferences.remove(UnlockSettingsKeys.outputDirectoryUri)
-            }
-            applicationContext
-                .unlockLegacySharedPreferences()
-                .edit()
-                .remove(KEY_OUTPUT_DIRECTORY_URI)
-                .apply()
-        }
+        applicationContext
+            .unlockLegacySharedPreferences()
+            .edit()
+            .remove(KEY_OUTPUT_DIRECTORY_URI)
+            .apply()
     }
 
     private suspend fun migrateLegacyValueIfNeeded() {
+        if (migrationComplete) return
+
         val dataStore = applicationContext.unlockMusicDataStore
         val existing = dataStore.data.first()[UnlockSettingsKeys.outputDirectoryUri]
         val legacyPreferences = applicationContext.unlockLegacySharedPreferences()
@@ -55,6 +52,8 @@ class LastSessionSettingsStore(
         if (legacyValue != null) {
             legacyPreferences.edit().remove(KEY_OUTPUT_DIRECTORY_URI).apply()
         }
+
+        migrationComplete = true
     }
 
     private companion object {

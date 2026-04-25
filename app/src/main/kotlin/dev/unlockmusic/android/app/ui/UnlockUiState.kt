@@ -25,16 +25,21 @@ data class UnlockUiState(
     val supportedSelectedCount: Int =
         queuedTasks.count { it.source.detectedFileType != DetectedFileType.UNKNOWN }
     val unsupportedSelectedCount: Int =
-        0
+        queuedTasks.count { it.source.detectedFileType == DetectedFileType.UNKNOWN }
     val unsupportedSelectedNames: List<String> =
-        emptyList()
+        queuedTasks
+            .filter { it.source.detectedFileType == DetectedFileType.UNKNOWN }
+            .map { it.source.displayName }
     val queuedCount: Int = queuedTasks.count { it.status is UnlockStatus.Queued }
     val successfulCount: Int = queuedTasks.count { it.status is UnlockStatus.Success }
-    val unsupportedItemCount: Int = 0
+    val unsupportedItemCount: Int = visibleItems.count { it.state == UnlockListItemState.Unsupported }
     val retryableCount: Int =
         queuedTasks.count {
-            it.status is UnlockStatus.Failed ||
-                it.status is UnlockStatus.Canceled
+            it.source.detectedFileType != DetectedFileType.UNKNOWN &&
+                (
+                    it.status is UnlockStatus.Failed ||
+                        it.status is UnlockStatus.Canceled
+                )
         }
     val overallProgressPercent: Int =
         if (queuedTasks.isEmpty()) {
@@ -74,6 +79,22 @@ enum class UnlockListItemState {
 }
 
 private fun UnlockTask.toListItem(activeTaskId: String?): UnlockListItem {
+    if (source.detectedFileType == DetectedFileType.UNKNOWN) {
+        val detail =
+            when (val taskStatus = status) {
+                is UnlockStatus.Failed -> taskStatus.message
+                else -> "当前 Android 版本暂不支持此文件类型。"
+            }
+        return UnlockListItem(
+            key = id,
+            taskId = id,
+            source = source,
+            state = UnlockListItemState.Unsupported,
+            detail = detail,
+            isRemovable = true,
+        )
+    }
+
     return when (val taskStatus = status) {
         UnlockStatus.Canceled ->
             UnlockListItem(
